@@ -13,7 +13,7 @@ class Rank(enum.Enum):
     ROYAL_FLUSH = 10
 
 CARD_VALUES = ("2", "3", "4", "5", "6", "7", "8", "9", "T", "J", "Q", "K", "A")
-ROYAL_FLUSH = set(CARD_VALUES[-5:])
+ROYAL_FLUSH = CARD_VALUES[-5:]
 
 def value_to_index(card_value):
     return CARD_VALUES.index(card_value)
@@ -52,7 +52,7 @@ class Hand:
 
     def is_consecutive(self):
         """ Return whether hand contains consecutive values """
-        for i, next_i in zip(self.indices[:4], self.indices[-1:]):
+        for i, next_i in zip(self.indices[:4], self.indices[1:]):
             if i + 1 != next_i:
                 return False
         return True
@@ -70,39 +70,41 @@ class Hand:
         analysis = self.analyze()
         num_suits = len(analysis["suits"])
         value_counts = list(analysis["values"].values())
+        reversed_indices = self.indices[::-1]
 
-        if num_suits == 1 and set(self.values) == ROYAL_FLUSH:
+        if num_suits == 1 and set(self.values) == set(ROYAL_FLUSH):
             return (Rank.ROYAL_FLUSH,)
         if num_suits == 1 and self.is_consecutive():
             return Rank.STRAIGHT_FLUSH, self.indices[-1]
         for card_value, count in analysis["values"].items():
             if count == 4:
-                return (Rank.FOUR_OF_A_KIND, value_to_index(card_value), *self.indices)
+                return (Rank.FOUR_OF_A_KIND, value_to_index(card_value), *reversed_indices)
         if 3 in value_counts and 2 in value_counts:
             return Rank.FULL_HOUSE, self.indices[-1], self.indices[-4]
         if num_suits == 1:
             return Rank.FLUSH, self.indices[-1]
-        if self.is_consecutive():
+        if self.is_consecutive():  # Hm, I think this is not working
             return Rank.STRAIGHT, self.indices[-1]
         for card_value, count in analysis["values"].items():
             if count == 3:
-                return (Rank.THREE_OF_A_KIND, value_to_index(card_value), *self.indices)
+                return (Rank.THREE_OF_A_KIND, value_to_index(card_value), *reversed_indices)
         if value_counts.count(2) == 2:
             indices = []
             for card_value, count in analysis["values"].items():
                 if count == 2:
                     indices.append(value_to_index(card_value))
             indices = list(sorted(indices))
-            return (Rank.TWO_PAIRS, *indices, *self.indices)
+            return (Rank.TWO_PAIRS, *indices, *reversed_indices)
         for card_value, count in analysis["values"].items():
             if count == 2:
-                return (Rank.ONE_PAIR, value_to_index(card_value), *self.indices)
-        return (Rank.HIGH_CARD, *self.indices[::-1])
+                return (Rank.ONE_PAIR, value_to_index(card_value), *reversed_indices)
+        return (Rank.HIGH_CARD, *reversed_indices)
 
     def _card_indices(self):
         """ Return indices of each card based on CARD_VALUES """
         indices = [value_to_index(value) for value in self.values]
         return list(sorted(indices))
+
 
 def winner(player1_hand, player2_hand):
     """
